@@ -1,5 +1,6 @@
 import { BlogEntry } from "@/types/blog";
 import { Calendar, Tag } from "lucide-react";
+import { SectionRenderer } from "./SectionRenderer";
 
 interface CodeDocViewerProps {
   entry: BlogEntry;
@@ -54,7 +55,16 @@ export function CodeDocViewer({
         </header>
       )}
 
-      {/* Todo: implement the sections logic */}
+      <div className="">
+        {entry.sections.map((section, index) => (
+          <SectionRenderer
+            key={index}
+            section={section}
+            isFirst={index === 0}
+            isLast={index === entry.sections.length - 1}
+          />
+        ))}
+      </div>
 
       {footer ?? (
         <footer className="grid grid-cols-1 lg:grid-cols-2">
