@@ -1,5 +1,6 @@
 import { Section } from "@/types/blog";
 import { CodeRenderer } from "./CodeRenderer";
+import { ContentRenderer } from "./ContentRender";
 
 interface SectionRendererProps {
   section: Section;
@@ -25,20 +26,18 @@ export function SectionRenderer({
                 isLast:
                   isLast && index === (section.codeBlocks?.length ?? 1) - 1,
               }}
-              lineAnimationDelay={20}
             />
           ))}
         </div>
       </div>
 
       <div className="p-6 lg:p-10 order-1 lg:order-2">
-        {section.heading && <h2>{section.heading}</h2>}
         {section.content && (
-          <div>
-            {/* Render markdown content here */}
-            {section.content}
-          </div>
-        )}
+            <ContentRenderer
+              content={section.content}
+              heading={section.heading}
+            />
+          )}
       </div>
     </div>
   );
