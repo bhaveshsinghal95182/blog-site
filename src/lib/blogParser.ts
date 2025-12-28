@@ -45,6 +45,12 @@ export interface SimpleCodeBlock {
    * ```
    */
   code: string;
+  /**
+   * Optional: The complete final file content.
+   * If provided, this will be used for copying instead of computing from chunks.
+   * Context and removed lines in `code` will be validated against this.
+   */
+  fullCode?: string;
 }
 
 /**
@@ -102,6 +108,24 @@ function parseCodeToChunks(code: string): CodeChunk[] {
 }
 
 /**
+ * Extract the full resulting code from chunks.
+ * Includes 'added' and 'context' lines, excludes 'removed' lines.
+ */
+export function getFullCodeFromChunks(chunks: CodeChunk[]): string {
+  const lines: string[] = [];
+  
+  for (const chunk of chunks) {
+    // Skip removed lines - they don't appear in the final file
+    if (chunk.type === 'removed') continue;
+    
+    // Include added and context lines
+    lines.push(...chunk.lines);
+  }
+  
+  return lines.join('\n');
+}
+
+/**
  * Convert a simple code block to the full CodeBlock format
  */
 function parseSimpleCodeBlock(simple: SimpleCodeBlock): CodeBlock {
@@ -111,6 +135,8 @@ function parseSimpleCodeBlock(simple: SimpleCodeBlock): CodeBlock {
     filePath: simple.filePath,
     isLast: simple.isLast,
     chunks: parseCodeToChunks(simple.code),
+    // If fullCode is explicitly provided, use it directly
+    fullModified: simple.fullCode,
   };
 }
 
@@ -159,12 +185,105 @@ function parseSimpleSection(simple: SimpleSection): Section {
  * ```
  */
 export function parseBlogEntry(simple: SimpleBlogEntry): BlogEntry {
-  return {
+  const parsed: BlogEntry = {
     id: simple.id,
     title: simple.title,
     meta: simple.meta,
     sections: simple.sections.map(parseSimpleSection),
   };
+
+  // Check if any code block has explicit fullCode provided
+  const explicitFullCode = new Map<string, string>();
+  for (const section of simple.sections) {
+    for (const codeBlock of section.codeBlocks ?? []) {
+      if (codeBlock.fullCode && codeBlock.filePath) {
+        explicitFullCode.set(codeBlock.filePath, codeBlock.fullCode);
+      }
+    }
+  }
+
+  // Validate context/removed lines against explicit fullCode (if provided)
+  if (explicitFullCode.size > 0) {
+    validateChunksAgainstFullCode(parsed, explicitFullCode);
+  }
+
+  // Compute fullModified for the last code block of each file
+  // by accumulating all chunks across sections
+  const fileChunks = new Map<string, CodeChunk[]>();
+  
+  // Collect all chunks per file
+  for (const section of parsed.sections) {
+    for (const codeBlock of section.codeBlocks ?? []) {
+      const filePath = codeBlock.filePath ?? 'unnamed';
+      const existing = fileChunks.get(filePath) ?? [];
+      existing.push(...codeBlock.chunks);
+      fileChunks.set(filePath, existing);
+    }
+  }
+
+  // Compute full code for each file (or use explicit fullCode if provided)
+  const fullCodeMap = new Map<string, string>();
+  for (const [filePath, chunks] of fileChunks) {
+    // If explicit fullCode was provided, use it; otherwise compute from chunks
+    const explicit = explicitFullCode.get(filePath);
+    fullCodeMap.set(filePath, explicit ?? getFullCodeFromChunks(chunks));
+  }
+
+  // Attach fullModified to the last code block of each file
+  const lastBlockSeen = new Map<string, CodeBlock>();
+  for (const section of parsed.sections) {
+    for (const codeBlock of section.codeBlocks ?? []) {
+      const filePath = codeBlock.filePath ?? 'unnamed';
+      lastBlockSeen.set(filePath, codeBlock);
+    }
+  }
+  
+  for (const [filePath, codeBlock] of lastBlockSeen) {
+    codeBlock.fullModified = fullCodeMap.get(filePath);
+  }
+
+  return parsed;
+}
+
+/**
+ * Validate that context and removed lines in chunks match the provided fullCode.
+ * Logs warnings if mismatches are found (doesn't throw to avoid breaking builds).
+ */
+function validateChunksAgainstFullCode(
+  parsed: BlogEntry,
+  explicitFullCode: Map<string, string>
+): void {
+  for (const section of parsed.sections) {
+    for (const codeBlock of section.codeBlocks ?? []) {
+      const filePath = codeBlock.filePath;
+      if (!filePath) continue;
+      
+      const fullCode = explicitFullCode.get(filePath);
+      if (!fullCode) continue;
+      
+      const fullLines = fullCode.split('\n');
+      
+      // Check context and removed lines exist in the full code
+      for (const chunk of codeBlock.chunks) {
+        if (chunk.type === 'added') continue; // Added lines won't be in original
+        
+        for (const line of chunk.lines) {
+          const trimmedLine = line.trim();
+          // Skip empty lines
+          if (!trimmedLine) continue;
+          
+          // Check if this line exists somewhere in the full code
+          const found = fullLines.some(fullLine => fullLine.trim() === trimmedLine);
+          
+          if (!found) {
+            console.warn(
+              `[blogParser] Line mismatch in ${filePath} (${chunk.type}): "${line.slice(0, 50)}..." not found in fullCode`
+            );
+          }
+        }
+      }
+    }
+  }
 }
 
 /**

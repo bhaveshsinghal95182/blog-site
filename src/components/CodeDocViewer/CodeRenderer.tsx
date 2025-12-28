@@ -1,15 +1,11 @@
-'use client';
 import { Highlight } from "prism-react-renderer";
 import { CodeBlock, CodeChunk } from "@/types/blog";
 import { cn } from "@/lib/utils";
-import { FileCode, Copy, Check, Plus, Minus } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import { Button } from "../ui/button";
+import { FileCode, Plus, Minus } from "lucide-react";
+import { CopyButton } from "./CopyButton";
 
 interface CodeRendererProps {
   codeBlock: CodeBlock & { isLast?: boolean };
-  /** Animation delay per line in ms */
-  lineAnimationDelay?: number;
 }
 
 const gruvboxDark = {
@@ -72,57 +68,27 @@ const gruvboxDark = {
   ],
 };
 
-function AnimatedLine({
+function CodeLine({
   chunk,
   line,
   lineNumber,
-  delay,
 }: {
   chunk: CodeChunk;
   line: string;
   lineNumber: number;
-  delay: number;
 }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const lineRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setTimeout(() => setIsVisible(true), delay);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
-    );
-
-    if (lineRef.current) {
-      observer.observe(lineRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [delay]);
-
   const isAdded = chunk.type === "added";
   const isRemoved = chunk.type === "removed";
   const isContext = chunk.type === "context";
 
   return (
     <div
-      ref={lineRef}
       className={cn(
-        "flex group transition-all duration-500 ease-out",
+        "flex group",
         isAdded && "bg-diff-added-bg border-l-2 border-diff-added-border",
-        isRemoved &&
-          "bg-diff-removed-bg border-l-2 border-diff-removed-border",
-        isContext && "opacity-50 hover:opacity-80",
-        isAdded && !isVisible && "opacity-0 translate-x-8",
-        isAdded && isVisible && "opacity-100 translate-x-0"
+        isRemoved && "bg-diff-removed-bg border-l-2 border-diff-removed-border",
+        isContext && "opacity-60 hover:opacity-90"
       )}
-      style={{
-        transitionDelay: isAdded ? `${delay}ms` : "0ms",
-      }}
     >
       {/* Line number */}
       <span className="w-12 shrink-0 text-right pr-4 text-line-number select-none text-sm">
@@ -143,7 +109,7 @@ function AnimatedLine({
           {({ style, tokens, getTokenProps }) => (
             <span style={{ ...style, background: "transparent" }}>
               {tokens[0]?.map((token, key) => (
-                <span key={key} {...getTokenProps({ token })} />
+                <span key={key} {...getTokenProps({ token })} className="tracking-wide" />
               ))}
             </span>
           )}
@@ -155,18 +121,15 @@ function AnimatedLine({
 
 export function CodeRenderer({
   codeBlock,
-  lineAnimationDelay = 40,
 }: CodeRendererProps) {
-  const [copied, setCopied] = useState(false);
   let lineNumber = 1;
-  let addedLineIndex = 0;
 
-  const handleCopy = async () => {
-    const allCode = codeBlock.chunks.flatMap((chunk) => chunk.lines).join("\n");
-    await navigator.clipboard.writeText(allCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Compute the text to copy - use fullModified if available, otherwise build from chunks
+  const textToCopy = codeBlock.fullModified 
+    ?? codeBlock.chunks
+        .filter((chunk) => chunk.type !== 'removed')
+        .flatMap((chunk) => chunk.lines)
+        .join("\n");
 
   const showCopyButton = codeBlock.isLast;
 
@@ -180,23 +143,7 @@ export function CodeRenderer({
             <span className="font-mono">{codeBlock.filePath}</span>
           </div>
           {showCopyButton && (
-            <Button
-              onClick={handleCopy}
-              className="flex items-center gap-2 px-3 py-1 rounded bg-code-fg/10 hover:bg-code-fg/20 text-code-fg/70 hover:text-code-fg transition-colors text-sm"
-              title="Copy entire file"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 text-diff-added-border" />
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>Copy file</span>
-                </>
-              )}
-            </Button>
+            <CopyButton textToCopy={textToCopy} />
           )}
         </div>
       )}
@@ -209,18 +156,13 @@ export function CodeRenderer({
               <div key={chunkIndex}>
                 {chunk.lines.map((line, lineIndex) => {
                   const currentLineNumber = lineNumber++;
-                  const isAdded = chunk.type === "added";
-                  const currentDelay = isAdded
-                    ? addedLineIndex++ * lineAnimationDelay
-                    : 0;
 
                   return (
-                    <AnimatedLine
+                    <CodeLine
                       key={`${chunkIndex}-${lineIndex}`}
                       chunk={chunk}
                       line={line || " "}
                       lineNumber={currentLineNumber}
-                      delay={currentDelay}
                     />
                   );
                 })}

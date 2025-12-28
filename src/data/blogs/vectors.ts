@@ -42,7 +42,7 @@ Vectors are ideal when you:
             +using namespace std;
             +
             +int main() {
-             // We'll build our vector examples here
+            + // We'll build our vector examples here
              
           `,
         },
