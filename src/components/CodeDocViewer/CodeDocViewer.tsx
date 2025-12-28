@@ -4,6 +4,7 @@ import { Calendar, Tag } from "lucide-react";
 interface CodeDocViewerProps {
   entry: BlogEntry;
   header?: React.ReactNode; // custom header component
+  footer?: React.ReactNode; // custom footer component
   showMeta?: boolean; // meta information (date, tags)
   classNames?: string;
 }
@@ -11,7 +12,8 @@ interface CodeDocViewerProps {
 export function CodeDocViewer({
   entry,
   header,
-  showMeta,
+  footer,
+  showMeta = true,
   classNames,
 }: CodeDocViewerProps) {
   return (
@@ -54,7 +56,20 @@ export function CodeDocViewer({
 
       {/* Todo: implement the sections logic */}
 
-      {/* Todo: Implement a footer */}
+      {footer ?? (
+        <footer className="grid grid-cols-1 lg:grid-cols-2">
+          <div className="bg-code-bg p-6 lg:p-10">
+            <p className="text-code-fg/40 text-sm font-mono">End of document</p>
+          </div>
+          <div className="bg-background p-6 lg:p-10 lg:pl-12">
+            <div className="flex items-center gap-4">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-muted-foreground text-sm">✦</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+        </footer>
+      )}
     </article>
   );
 }
