@@ -115,7 +115,7 @@ function AnimatedLine({
         "flex group transition-all duration-500 ease-out",
         isAdded && "bg-diff-added-bg border-l-2 border-diff-added-border",
         isRemoved &&
-          "bg-diff-removed-bg border-l-2 border-diff-removed-border line-through",
+          "bg-diff-removed-bg border-l-2 border-diff-removed-border",
         isContext && "opacity-50 hover:opacity-80",
         isAdded && !isVisible && "opacity-0 translate-x-8",
         isAdded && isVisible && "opacity-100 translate-x-0"
@@ -204,7 +204,7 @@ export function CodeRenderer({
       {/* Code content */}
       <div className="overflow-x-auto code-scrollbar">
         <pre className="py-4 text-sm leading-relaxed">
-          <code>
+          <code className="block min-w-max">
             {codeBlock.chunks.map((chunk, chunkIndex) => (
               <div key={chunkIndex}>
                 {chunk.lines.map((line, lineIndex) => {
