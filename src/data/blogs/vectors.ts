@@ -1,7 +1,7 @@
 import { SimpleBlogEntry, parseBlogEntry, code } from "@/lib/blogParser";
 
 const vectorsBlog: SimpleBlogEntry = {
-  id: "cpp-stl-vectors-guide",
+  id: "vectors",
   title: "Complete Guide to C++ STL Vectors",
   meta: {
     date: "2025-12-28",
